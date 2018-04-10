@@ -1,21 +1,10 @@
 # my-infinite-loading
+先开发一个具体的无限滚动列表组件，
+再抽象出一个实现了无限滚动的插件
 
-> A Vue.js project
-
-## Build Setup
-
-``` bash
-# install dependencies
-npm install
-
-# serve with hot reload at localhost:8080
-npm run dev
-
-# build for production with minification
-npm run build
-
-# build for production and view the bundle analyzer report
-npm run build --report
-```
-
-For a detailed explanation on how things work, check out the [guide](http://vuejs-templates.github.io/webpack/) and [docs for vue-loader](http://vuejs.github.io/vue-loader).
+这个插件要性能高，用户体验好。应具有以下feature：
+- 1、实现滚动项预加载和防抖动
+- 2、对有大量滚动项的场景做了优化
+- 3、实现了墓碑占位
+- 4、实现了滚动锚定（当窗口大小发生改变时或设备翻转时或墓碑被替换时）
+- 5、同时支持移动端和pc端
