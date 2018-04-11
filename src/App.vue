@@ -16,14 +16,14 @@
         <h3>Scroll info</h3>
         <p>Total items: <span>{{list.length}}</span></p>
         <p>Item height: <span>{{data.itemHeight}}px</span></p>
-        <p>Above items: <span>{{data.itemNumsAboveWindow}}</span></p>
-        <p>Below items: <span>{{data.itemNumsBelowWindow}}</span></p>
-        <p>Rows in window: <span>{{data.displayCount + 1}}-{{(data.displayCount + data.itemNumsInWindow) > list.length ? list.length: (data.displayCount + data.itemNumsInWindow)}}</span>
+        <p>Above items: <span>{{data.itmNumsAbvWnd}}</span></p>
+        <p>Below items: <span>{{data.itmNumsBlwWnd}}</span></p>
+        <p>Rows in window: <span>{{data.displayCount + 1}}-{{(data.displayCount + data.itmNumsInWnd) > list.length ? list.length: (data.displayCount + data.itmNumsInWnd)}}</span>
         </p>
-        <p><span>{{data.itemNumsInWindow * 4}}</span> items from <span>{{data.from}}</span> to <span>{{data.to}}</span></p>
-        <p>Top height: <span>{{data.scrollElementPaddingTop}}px</span></p>
-        <p>Bottom Height: <span>{{data.scrollElementPaddingBottom}}px</span></p>
-        <p>Will load more items: <span>{{!data.canLoadmore}}</span></p>
+        <p><span>{{data.itmNumsInWnd * 4}}</span> items from <span>{{data.firstItmIdxDisplayedData}}</span> to <span>{{data.lastItmIdxDisplayedData}}</span></p>
+        <p>Top height: <span>{{data.scrollElmPaddingTop}}px</span></p>
+        <p>Bottom Height: <span>{{data.scrollElmPaddingBotm}}px</span></p>
+        <p>Will load more items: <span>{{!data.canLoadMore}}</span></p>
         <br>
         <p>
           <span>You can open the developer tools and observe the changes in the elements.</span>
@@ -47,7 +47,7 @@
       }
     },
     created () {
-      for (var i = 0; i < 200; i++) {
+      for (var i = 0; i < 100; i++) {
         this.list.push({
           title: 'item ' + COUNT++
         })
