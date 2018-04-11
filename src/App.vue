@@ -1,29 +1,28 @@
 <template>
   <div id="app">
     <header>
-      <h1 class="title">vue-list</h1>
+      <h1 class="title">myInfiniteLoading</h1>
       <p>A solution to build an infinite load more list component.</p>
-      <p><a class="button" href="https://github.com/hejianxian/vue-list">Code on Github</a> / <a class="button"
-                                                                                                 href="https://github.com/hejianxian">My
+      <p><a class="button" href="https://github.com/yongjiexu/myInfiniteLoading">Code on Github</a> / <a class="button" href="https://github.com/yongjiexu">My
         profile</a></p>
     </header>
     <div class="content">
       <div class="preview">
         <div class="preview-content">
-          <MyInfiniteLoading :list.sync='list' :dispatchData="setData"></MyInfiniteLoading>
+          <MyInfiniteLoading :dataPool.sync='list' :dispatchData="setData"></MyInfiniteLoading>
         </div>
       </div>
       <div class="setting">
         <h3>Scroll info</h3>
         <p>Total items: <span>{{list.length}}</span></p>
-        <p>Item height: <span>{{data.height}}px</span></p>
-        <p>Above items: <span>{{data._above}}</span></p>
-        <p>Below items: <span>{{data._below}}</span></p>
-        <p>Rows in window: <span>{{data.displayCount + 1}}-{{(data.displayCount + data._rowsInWindow) > list.length ? list.length: (data.displayCount + data._rowsInWindow)}}</span>
+        <p>Item height: <span>{{data.itemHeight}}px</span></p>
+        <p>Above items: <span>{{data.itemNumsAboveWindow}}</span></p>
+        <p>Below items: <span>{{data.itemNumsBelowWindow}}</span></p>
+        <p>Rows in window: <span>{{data.displayCount + 1}}-{{(data.displayCount + data.itemNumsInWindow) > list.length ? list.length: (data.displayCount + data.itemNumsInWindow)}}</span>
         </p>
-        <p><span>{{data._rowsInWindow * 4}}</span> items from <span>{{data.from}}</span> to <span>{{data.to}}</span></p>
-        <p>Top height: <span>{{data.lineTopHeight}}px</span></p>
-        <p>Bottom Height: <span>{{data.lineBottomHeight}}px</span></p>
+        <p><span>{{data.itemNumsInWindow * 4}}</span> items from <span>{{data.from}}</span> to <span>{{data.to}}</span></p>
+        <p>Top height: <span>{{data.scrollElementPaddingTop}}px</span></p>
+        <p>Bottom Height: <span>{{data.scrollElementPaddingBottom}}px</span></p>
         <p>Will load more items: <span>{{!data.canLoadmore}}</span></p>
         <br>
         <p>

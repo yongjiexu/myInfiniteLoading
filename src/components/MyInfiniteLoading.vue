@@ -1,7 +1,7 @@
 <template lang="html">
-  <div class="vue-list" @scroll="handleScroll">
-    <ul :style="{paddingTop: lineTopHeight +'px',paddingBottom: lineBottomHeight +'px'}">
-      <li v-for="(item,index) in previewList" :key="index">{{item.title}}</li>
+  <div class="vue-dataPool" @scroll="handleScroll">
+    <ul :style="{paddingTop: scrollElementPaddingTop +'px',paddingBottom: scrollElementPaddingBottom +'px'}">
+      <li v-for="(item,index) in displayedData" :key="index">{{item.title}}</li>
     </ul>
     <div class="load-more-gif">loading...</div>
   </div>
@@ -11,9 +11,10 @@
 
   let COUNT = 1
   export default {
-    name: 'vue-list',
+    name: 'MyInfiniteLoading',
     props: {
-      list: {
+      // 数据池 存放所有可能被展示的数据
+      dataPool: {
         type: Array,
         required: true,
         default: function () {
@@ -21,15 +22,17 @@
         },
         twoWays: true
       },
-      height: {
+      // 每个item的高度
+      itemHeight: {
         type: Number,
         default: 44
       },
+      // 标识是否能继续滚动
       canScroll: {
         type: Boolean,
         default: true
       },
-      // todo ?
+      // todo ? 作用是什么
       dispatchData: {
         type: Function
       }
@@ -37,15 +40,20 @@
     data () {
       return {
         // 上一次滚动的距离
-        lastScrollTop: null,
+        lastScrollTop: undefined,
+        // 预加载的距离
         distance: 44,
         // 屏幕上面未渲染的元素的高度和
-        lineTopHeight: 0,
+        scrollElementPaddingTop: 0,
         // 屏幕下面未渲染的元素的高度和
-        lineBottomHeight: 0,
+        scrollElementPaddingBottom: 0,
+        // 标识是否能加载更多
         canLoadmore: true,
         // 当前渲染的数据
-        previewList: [],
+        displayedData: [],
+        // 当前屏幕中显示的第一个item的“次序”
+        // 为了在控制面板中显示控制信息而计算的量
+        // todo 这个名字起得不好 改名
         displayCount: 0
       }
     },
@@ -57,55 +65,51 @@
       initData () {
         // init all data
         // 窗口中显示的item数，向上取整
-        this._rowsInWindow = Math.ceil(this.$el.offsetHeight / this.height)
+        this.itemNumsInWindow = Math.ceil(this.$el.offsetHeight / this.itemHeight)
         //  窗口上面未显示的item数
-        this._above = this._rowsInWindow * 2
+        this.itemNumsAboveWindow = this.itemNumsInWindow * 2
         //  窗口下面未显示的item数
-        this._below = this._rowsInWindow
-        // 最大高度,当两次相邻滚动之差绝对值>=_max,则重新组织数据
-        this._max = this._rowsInWindow * this.height
+        this.itemNumsBelowWindow = this.itemNumsInWindow
+        // 最大高度,当两次相邻滚动之差绝对值>=edgeDistanceForResetDisplayedData,则重新组织数据
+        this.edgeDistanceForResetDisplayedData = this.itemNumsInWindow * this.itemHeight
       },
       handleScroll () {
         // 缓存当前的滚动高度
-        let _scrollTop = this.$el.scrollTop
+        let currentScrollTop = this.$el.scrollTop
         // 缓存内部滚动元素即ul的高度
-        let _height = this.$el.querySelectorAll('ul')[0].offsetHeight
+        let scrollElmHeight = this.$el.querySelectorAll('ul')[0].offsetHeight
         // 缓存容器高度
-        let _contentHeight = this.$el.offsetHeight
+        let containerHeight = this.$el.offsetHeight
 
-        // Counts the number of rows on the current screen
         // 计算当前屏幕显示的item数目，用于展示数据。不是实现功能必须的量
-        if (_scrollTop / this.height - Math.floor(_scrollTop / this.height) > 0.5) {
-          this.displayCount = Math.ceil(_scrollTop / this.height)
-        } else {
-          this.displayCount = Math.floor(_scrollTop / this.height)
-        }
+        this.displayCount = Math.round(currentScrollTop / this.itemHeight)
 
-        // if the maximum height is exceeded, reset the previewList
-        if (this.lastScrollTop === null || Math.abs(_scrollTop - this.lastScrollTop) > this._max) {
-          this.lastScrollTop = _scrollTop
+        // if the maximum height is exceeded, reset the displayedData
+        if (this.lastScrollTop === undefined || Math.abs(currentScrollTop - this.lastScrollTop) > this.edgeDistanceForResetDisplayedData) {
+          // 更新lastScrollTop
+          this.lastScrollTop = currentScrollTop
         } else {
-          if (this.to === this.list.length && _height - _scrollTop - _contentHeight < this.distance) {
-            this.canScroll && this.loadMore(this.from, this.to)
+          if (this.lastItemIndexInDisplayedData === this.dataPool.length && scrollElmHeight - currentScrollTop - containerHeight < this.distance) {
+            this.canScroll && this.loadMore(this.firstItemIndexInDisplayedData, this.lastItemIndexInDisplayedData)
           }
           return
         }
 
-        // get from and to count
-        let _from = parseInt(_scrollTop / this.height) - this._above
-        if (_from < 0) {
-          _from = 0
+        // get firstItemIndexInDisplayedData and lastItemIndexInDisplayedData count
+        let _firstItemIndexInDisplayedData = parseInt(currentScrollTop / this.itemHeight) - this.itemNumsAboveWindow
+        if (_firstItemIndexInDisplayedData < 0) {
+          _firstItemIndexInDisplayedData = 0
         }
-        let _to = _from + this._above + this._below + this._rowsInWindow
-        if (_to > this.list.length) {
-          _to = this.list.length
+        let _lastItemIndexInDisplayedData = _firstItemIndexInDisplayedData + this.itemNumsAboveWindow + this.itemNumsBelowWindow + this.itemNumsInWindow
+        if (_lastItemIndexInDisplayedData > this.dataPool.length) {
+          _lastItemIndexInDisplayedData = this.dataPool.length
         }
-        this.from = _from
-        this.to = _to
+        this.firstItemIndexInDisplayedData = _firstItemIndexInDisplayedData
+        this.lastItemIndexInDisplayedData = _lastItemIndexInDisplayedData
 
         // set top height and bottom height
-        this.lineTopHeight = _from * this.height
-        this.lineBottomHeight = (this.list.length - _to) * this.height
+        this.scrollElementPaddingTop = _firstItemIndexInDisplayedData * this.itemHeight
+        this.scrollElementPaddingBottom = (this.dataPool.length - _lastItemIndexInDisplayedData) * this.itemHeight
 
         // dispatch data
         if (typeof this.dispatchData === 'function') {
@@ -113,44 +117,44 @@
         }
 
         // 重新填充要渲染的数据
-        this.resetPreviewList(_from, _to)
+        this.resetDisplayedData(_firstItemIndexInDisplayedData, _lastItemIndexInDisplayedData)
 
         // 填充数据后检查是否要加载新数据
         this.$nextTick(() => {
-          let _scrollTop = this.$el.scrollTop
-          let _height = this.$el.querySelectorAll('ul')[0].offsetHeight
-          let _contentHeight = this.$el.offsetHeight
+          let currentScrollTop = this.$el.scrollTop
+          let scrollElmHeight = this.$el.querySelectorAll('ul')[0].offsetHeight
+          let containerHeight = this.$el.offsetHeight
 
-          if (_to === this.list.length && _height - _scrollTop - _contentHeight < 0) {
-            this.canScroll && this.loadMore(this.from, this.to)
+          if (_lastItemIndexInDisplayedData === this.dataPool.length && scrollElmHeight - currentScrollTop - containerHeight < 0) {
+            this.canScroll && this.loadMore(this.firstItemIndexInDisplayedData, this.lastItemIndexInDisplayedData)
           }
         })
       },
-      loadMore (from, to) {
+      loadMore (firstItemIndexInDisplayedData, lastItemIndexInDisplayedData) {
         if (!this.canLoadmore) return
         this.canLoadmore = false
         // fetch mock 模拟异步获取数据的操作
         setTimeout(() => {
           for (var i = 0; i < 200; i++) {
-            this.list.push({
+            this.dataPool.push({
               title: 'item ' + COUNT++
             })
           }
-          // _from、 _to, todo 为了处理数据不能填满屏幕的情况？
-          let _from = from
-          let _to = to + this._below
-          this.resetPreviewList(_from, _to)
-          this.lineBottomHeight = (this.list.length - _to) * this.height
+          // _firstItemIndexInDisplayedData、 _lastItemIndexInDisplayedData, todo 为了处理数据不能填满屏幕的情况？
+          let _firstItemIndexInDisplayedData = firstItemIndexInDisplayedData
+          let _lastItemIndexInDisplayedData = lastItemIndexInDisplayedData + this.itemNumsBelowWindow
+          this.resetDisplayedData(_firstItemIndexInDisplayedData, _lastItemIndexInDisplayedData)
+          this.scrollElementPaddingBottom = (this.dataPool.length - _lastItemIndexInDisplayedData) * this.itemHeight
           this.handleScroll()
 
           this.canLoadmore = true
         }, 2000)
       },
-      resetPreviewList (from, to) {
-        // reset previewList
-        this.previewList = []
-        for (; from < to; from++) {
-          this.previewList.push(this.list[from])
+      resetDisplayedData (firstItemIndexInDisplayedData, lastItemIndexInDisplayedData) {
+        // reset displayedData
+        this.displayedData = []
+        for (let i = firstItemIndexInDisplayedData; i < lastItemIndexInDisplayedData; i++) {
+          this.displayedData.push(this.dataPool[i])
         }
       }
     },
@@ -159,7 +163,7 @@
 </script>
 
 <style lang="stylus">
-  .vue-list {
+  .vue-dataPool {
     width: 100%;
     height: 100%;
     overflow-y: auto;
