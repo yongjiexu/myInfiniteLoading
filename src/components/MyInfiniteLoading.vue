@@ -1,14 +1,13 @@
 <template lang="html">
-  <div class="vue-dataPool" @scroll="handleScroll">
+  <div class="my-infinite-loading" @scroll="handleScroll">
     <ul :style="{paddingTop: scrollElmPaddingTop +'px',paddingBottom: scrollElmPaddingBotm +'px'}">
-      <li v-for="(item,index) in displayedData" :key="index">{{item.title}}</li>
+      <li v-for="(item,index) in displayedData" :key="index" v-if="item">{{item.title}}</li>
     </ul>
     <div class="load-more-gif">loading...</div>
   </div>
 </template>
 
 <script>
-
   let COUNT = 1
   export default {
     name: 'MyInfiniteLoading',
@@ -27,7 +26,7 @@
         type: Number,
         default: 44
       },
-      // 标识是否能继续滚动
+      // 标识是否允许滚动
       canScroll: {
         type: Boolean,
         default: true
@@ -39,8 +38,10 @@
     },
     data () {
       return {
-        // 上一次滚动的距离
+        // 上一次更新displayedData时scrollContainer的scrollTop
         lastScrollTop: undefined,
+        // 当前scrollContainer的scrollTop
+        currentScrollTop: undefined,
         // 预加载的距离
         distance: 44,
         // 屏幕上面未渲染的元素的高度和
@@ -51,6 +52,10 @@
         canLoadMore: true,
         // 当前渲染的数据
         displayedData: [],
+        // 展示数据的第一项的下标(这个下标是相对dataPool计算的)
+        firstItmIdxDisplayedData: undefined,
+        // 展示数据的最后一项的下标(这个下标是相对dataPool计算的)
+        lastItmIdxDisplayedData: undefined,
         // 当前屏幕中显示的第一个item的“次序”
         // 为了在控制面板中显示控制信息而计算的量
         // todo 这个名字起得不好 改名
@@ -84,51 +89,44 @@
         // 计算当前屏幕显示的item数目，用于展示数据。不是实现功能必须的量
         this.displayCount = Math.round(currentScrollTop / this.itemHeight)
 
-        // if the maximum height is exceeded, reset the displayedData
-        if (this.lastScrollTop === undefined || Math.abs(currentScrollTop - this.lastScrollTop) > this.edgeScrollDistance) {
+        // 只有上一次scrollTop未设置 或 当前scrollTop-lastScrollTop之差大于临界值时，才更新lastScrollTop，更新displayedData
+        if (this.lastScrollTop === undefined || Math.abs(currentScrollTop - this.lastScrollTop) >= this.edgeScrollDistance) {
           // 更新lastScrollTop
           this.lastScrollTop = currentScrollTop
-        } else { // lastItemIdxDisplayedData
+          // 计算新的displayedData的第一项在dataPool中的下标 即_firstItmIdxDisplayedData
+          let _firstItmIdxDisplayedData = Math.round(currentScrollTop / this.itemHeight) - this.itmNumsAbvWnd
+          if (_firstItmIdxDisplayedData < 0) {
+            _firstItmIdxDisplayedData = 0
+          }
+          // 计算新的displayedData的最后一项在dataPool中的下标 即_lastItmIdxDisplayedData
+          let _lastItmIdxDisplayedData = _firstItmIdxDisplayedData + this.itmNumsAbvWnd + this.itmNumsBlwWnd + this.itmNumsInWnd
+          if (_lastItmIdxDisplayedData > this.dataPool.length) {
+            _lastItmIdxDisplayedData = this.dataPool.length
+          }
+          // 更新firstItmIdxDisplayedData、lastItmIdxDisplayedData
+          this.firstItmIdxDisplayedData = _firstItmIdxDisplayedData
+          this.lastItmIdxDisplayedData = _lastItmIdxDisplayedData
+
+          // 更新滚动元素的paddingTop、paddingBottom
+          this.scrollElmPaddingTop = _firstItmIdxDisplayedData * this.itemHeight
+          this.scrollElmPaddingBotm = (this.dataPool.length - _lastItmIdxDisplayedData) * this.itemHeight
+
+          // dispatch data
+          if (typeof this.dispatchData === 'function') {
+            this.dispatchData(this)
+          }
+
+          // 重新填充要渲染的数据
+          this.resetDisplayedData(_firstItmIdxDisplayedData, _lastItmIdxDisplayedData)
+        } else {
+          // 当我们当前展示的数据是数据池中最后一段数据 且 剩余未展示的内容高度小于预加载距离时，需要重置展示数据。但是数据已经不够了，故从服务器获取更多数据
+          // scrollElmHeight - currentScrollTop - containerHeight < 0 这句代码好理解：我们模拟了完全展示了dataPool中数据的情况。
+          // 这句话的语义是：剩余未展示的内容高度小于预加载距离
           if (this.lastItmIdxDisplayedData === this.dataPool.length && scrollElmHeight - currentScrollTop - containerHeight < this.distance) {
             this.canScroll && this.loadMore(this.firstItmIdxDisplayedData, this.lastItmIdxDisplayedData)
           }
-          return
+          // return
         }
-
-        // get firstItmIdxDisplayedData and lastItmIdxDisplayedData count
-        let _firstItmIdxDisplayedData = parseInt(currentScrollTop / this.itemHeight) - this.itmNumsAbvWnd
-        if (_firstItmIdxDisplayedData < 0) {
-          _firstItmIdxDisplayedData = 0
-        }
-        let _lastItmIdxDisplayedData = _firstItmIdxDisplayedData + this.itmNumsAbvWnd + this.itmNumsBlwWnd + this.itmNumsInWnd
-        if (_lastItmIdxDisplayedData > this.dataPool.length) {
-          _lastItmIdxDisplayedData = this.dataPool.length
-        }
-        this.firstItmIdxDisplayedData = _firstItmIdxDisplayedData
-        this.lastItmIdxDisplayedData = _lastItmIdxDisplayedData
-
-        // set top height and bottom height
-        this.scrollElmPaddingTop = _firstItmIdxDisplayedData * this.itemHeight
-        this.scrollElmPaddingBotm = (this.dataPool.length - _lastItmIdxDisplayedData) * this.itemHeight
-
-        // dispatch data
-        if (typeof this.dispatchData === 'function') {
-          this.dispatchData(this)
-        }
-
-        // 重新填充要渲染的数据
-        this.resetDisplayedData(_firstItmIdxDisplayedData, _lastItmIdxDisplayedData)
-
-        // 填充数据后检查是否要加载新数据
-        this.$nextTick(() => {
-          let currentScrollTop = this.$el.scrollTop
-          let scrollElmHeight = this.$el.querySelectorAll('ul')[0].offsetHeight
-          let containerHeight = this.$el.offsetHeight
-
-          if (_lastItmIdxDisplayedData === this.dataPool.length && scrollElmHeight - currentScrollTop - containerHeight < 0) {
-            this.canScroll && this.loadMore(this.firstItmIdxDisplayedData, this.lastItmIdxDisplayedData)
-          }
-        })
       },
       loadMore (firstItmIdxDisplayedData, lastItmIdxDisplayedData) {
         if (!this.canLoadMore) return
@@ -145,8 +143,6 @@
           let _lastItmIdxDisplayedData = lastItmIdxDisplayedData + this.itmNumsBlwWnd
           this.resetDisplayedData(_firstItmIdxDisplayedData, _lastItmIdxDisplayedData)
           this.scrollElmPaddingBotm = (this.dataPool.length - _lastItmIdxDisplayedData) * this.itemHeight
-          this.handleScroll()
-
           this.canLoadMore = true
         }, 2000)
       },
@@ -163,7 +159,7 @@
 </script>
 
 <style lang="stylus">
-  .vue-dataPool {
+  .my-infinite-loading {
     width: 100%;
     height: 100%;
     overflow-y: auto;
