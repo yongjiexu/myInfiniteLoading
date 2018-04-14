@@ -8,6 +8,10 @@
 </template>
 
 <script>
+  import underscore from 'underscore'
+
+  let _ = underscore._
+
   let COUNT = 1
   export default {
     name: 'MyInfiniteLoading',
@@ -59,15 +63,18 @@
         // 当前屏幕中显示的第一个item的“次序”
         // 为了在控制面板中显示控制信息而计算的量
         // todo 这个名字起得不好 改名
-        displayCount: 0
+        displayCount: 0,
+        // todo 把handleScroll定义在data中合理吗？
+        handleScroll: _.throttle(this._handleScroll, 50)
       }
     },
     mounted () {
-      this.initData()
+      this.init()
       this.handleScroll()
     },
     methods: {
-      initData () {
+      // 做一些初始化工作
+      init () {
         // init all data itmNumsInWnd
         // 窗口中显示的item数，向上取整
         this.itmNumsInWnd = Math.ceil(this.$el.offsetHeight / this.itemHeight)
@@ -78,7 +85,10 @@
         // 最大高度,当两次相邻滚动之差绝对值>=edgeScrollDistance,则重新组织数据
         this.edgeScrollDistance = this.itmNumsInWnd * this.itemHeight
       },
-      handleScroll () {
+      // handleScroll () {
+      //   _.throttle(this._handleScroll, 50)()
+      // },
+      _handleScroll () {
         // 缓存当前的滚动高度
         let currentScrollTop = this.$el.scrollTop
         // 缓存内部滚动元素即ul的高度
@@ -116,6 +126,8 @@
             this.dispatchData(this)
           }
 
+          // _firstItmIdxDisplayedData 含义是 需要重设的展示数据的第一项下标
+          // firstItmIdxDisplayedData 含义是 当前展示的数据的第一项的下标
           // 重新填充要渲染的数据
           this.resetDisplayedData(_firstItmIdxDisplayedData, _lastItmIdxDisplayedData)
         } else {
@@ -123,24 +135,26 @@
           // scrollElmHeight - currentScrollTop - containerHeight < 0 这句代码好理解：我们模拟了完全展示了dataPool中数据的情况。
           // 这句话的语义是：剩余未展示的内容高度小于预加载距离
           if (this.lastItmIdxDisplayedData === this.dataPool.length && scrollElmHeight - currentScrollTop - containerHeight < this.distance) {
-            this.canScroll && this.loadMore(this.firstItmIdxDisplayedData, this.lastItmIdxDisplayedData)
+            this.canScroll && this.loadMore()
           }
           // return
         }
       },
-      loadMore (firstItmIdxDisplayedData, lastItmIdxDisplayedData) {
+      loadMore () {
         if (!this.canLoadMore) return
         this.canLoadMore = false
-        // fetch mock 模拟异步获取数据的操作
+        // fetch mock 模拟异步获取数据的操作 实际使用时使用Promise来保证在获取数据后重设展示数据
         setTimeout(() => {
-          for (var i = 0; i < 100; i++) {
+          for (let i = 0; i < 100; i++) {
             this.dataPool.push({
               title: 'item ' + COUNT++
             })
           }
           // _firstItmIdxDisplayedData、 _lastItmIdxDisplayedData, todo 为了处理数据不能填满屏幕的情况？
-          let _firstItmIdxDisplayedData = firstItmIdxDisplayedData
-          let _lastItmIdxDisplayedData = lastItmIdxDisplayedData + this.itmNumsBlwWnd
+          let _firstItmIdxDisplayedData = this.firstItmIdxDisplayedData
+          // 计算要重设的展示数据的最后一项下标 要理解这一句就要考虑到loadMore的调用条件
+          let _lastItmIdxDisplayedData = this.lastItmIdxDisplayedData + this.itmNumsBlwWnd
+          // 只能在这里调用resetDisplayedData 原因：我们要保证在异步加载数据后再重设展示数据
           this.resetDisplayedData(_firstItmIdxDisplayedData, _lastItmIdxDisplayedData)
           this.scrollElmPaddingBotm = (this.dataPool.length - _lastItmIdxDisplayedData) * this.itemHeight
           this.canLoadMore = true
